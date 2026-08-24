@@ -1,0 +1,288 @@
+openapi: 3.0.3
+
+info:
+  title: Ledger Service API
+  version: 1.0.0
+  description: |
+    Accounting layer of the marketplace.
+
+    Public wallet endpoints are exposed through the API Gateway.
+    Internal account endpoints must never be exposed through the gateway.
+
+servers:
+  - url: http://localhost:8088
+
+paths:
+
+  /wallet:
+    post:
+      tags:
+        - Wallet
+      summary: Create wallet for the authenticated user
+      operationId: createWallet
+      description: |
+        Creates a wallet account for the authenticated user.
+        Prefer automatic wallet creation via USER_CREATED event from Auth Service on registration.
+      responses:
+        '201':
+          description: Wallet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '409':
+          description: Wallet already exists for user
+
+    get:
+      tags:
+        - Wallet
+      summary: Get authenticated user's wallet
+      operationId: getWallet
+      responses:
+        '200':
+          description: Wallet found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '404':
+          description: Wallet not found
+
+  /wallet/transactions:
+    get:
+      tags:
+        - Wallet
+      summary: List wallet transactions
+      operationId: getWalletTransactions
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionTypeApi'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Transactions page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionPageResponse'
+        '404':
+          description: Wallet not found
+
+  /wallet/transactions/{transactionId}:
+    get:
+      tags:
+        - Wallet
+      summary: Get a single wallet transaction
+      operationId: getWalletTransaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Transaction not found
+
+  /internal/accounts/{accountId}/credit:
+    post:
+      tags:
+        - Internal
+      summary: Credit an account
+      operationId: creditAccount
+      description: Internal endpoint. Never expose through the API Gateway.
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerMutationRequest'
+      responses:
+        '200':
+          description: Account credited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerMutationResponse'
+        '404':
+          description: Account not found
+
+  /internal/accounts/{accountId}/debit:
+    post:
+      tags:
+        - Internal
+      summary: Debit an account
+      operationId: debitAccount
+      description: Internal endpoint. Never expose through the API Gateway. Returns 409 if balance is insufficient.
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerMutationRequest'
+      responses:
+        '200':
+          description: Account debited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerMutationResponse'
+        '404':
+          description: Account not found
+        '409':
+          description: Insufficient balance
+
+components:
+
+  schemas:
+
+    WalletResponse:
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        balance:
+          type: number
+        currency:
+          type: string
+          example: BRL
+
+    TransactionResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/TransactionTypeApi'
+        description:
+          type: string
+        amount:
+          type: number
+        entryType:
+          $ref: '#/components/schemas/EntryTypeApi'
+        createdAt:
+          type: string
+          format: date-time
+
+    TransactionPageResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+
+    LedgerMutationRequest:
+      type: object
+      required:
+        - amount
+        - type
+      properties:
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        type:
+          $ref: '#/components/schemas/TransactionTypeApi'
+        description:
+          type: string
+
+    LedgerMutationResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/TransactionTypeApi'
+        entryType:
+          $ref: '#/components/schemas/EntryTypeApi'
+        amount:
+          type: number
+        balance:
+          type: number
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    TransactionTypeApi:
+      type: string
+      enum:
+        - PIX_DEPOSIT
+        - ORDER_PAYMENT
+        - ORDER_REFUND
+        - SELLER_RECEIPT
+        - WITHDRAWAL
+        - ADMIN_ADJUSTMENT
+
+    EntryTypeApi:
+      type: string
+      enum:
+        - CREDIT
+        - DEBIT
