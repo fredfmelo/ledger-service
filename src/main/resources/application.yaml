@@ -22,3 +22,6 @@ aws:
 
   sqs:
     ledger-queue: ledger-queue
+
+wallet:
+  initial-balance: 1000

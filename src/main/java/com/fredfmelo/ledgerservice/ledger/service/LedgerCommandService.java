@@ -11,6 +11,7 @@ import com.fredfmelo.eventdrivencore.event.Event;
 import com.fredfmelo.eventdrivencore.exception.BusinessException;
 import com.fredfmelo.eventdrivencore.outbox.entity.OutboxEntity;
 import com.fredfmelo.eventdrivencore.outbox.service.OutboxService;
+import com.fredfmelo.ledgerservice.config.ServiceConfig;
 import com.fredfmelo.ledgerservice.ledger.domain.EntryType;
 import com.fredfmelo.ledgerservice.ledger.domain.LedgerEntryEntity;
 import com.fredfmelo.ledgerservice.ledger.domain.LedgerTransactionEntity;
@@ -41,6 +42,7 @@ public class LedgerCommandService {
     private final LedgerWriteRepository ledgerWriteRepository;
     private final OutboxService outboxService;
     private final LedgerMapper ledgerMapper;
+    private final ServiceConfig serviceConfig;
 
     public WalletResponse createWallet(UserContext userContext) {
         return createWalletForUser(userContext.getUserId());
@@ -53,6 +55,16 @@ public class LedgerCommandService {
 
         WalletAccountEntity account = buildAccount(userId);
         ledgerWriteRepository.saveAccount(account);
+
+        BigDecimal initialBalance = serviceConfig.getWallet().getInitialBalance();
+        if (initialBalance != null && initialBalance.compareTo(BigDecimal.ZERO) > 0) {
+            LedgerMutationRequest request = new LedgerMutationRequest();
+            request.setAmount(initialBalance);
+            request.setType(com.fredfmelo.ledgerservice.model.TransactionTypeApi.PIX_DEPOSIT);
+            request.setDescription("Initial wallet balance");
+            mutate(account.getAccountId(), request, EntryType.CREDIT);
+            return ledgerMapper.toWalletResponse(account, initialBalance);
+        }
 
         return ledgerMapper.toWalletResponse(account, BigDecimal.ZERO);
     }

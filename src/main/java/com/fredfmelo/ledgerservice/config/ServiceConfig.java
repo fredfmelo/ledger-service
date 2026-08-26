@@ -1,5 +1,7 @@
 package com.fredfmelo.ledgerservice.config;
 
+import java.math.BigDecimal;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +35,14 @@ public class ServiceConfig implements DynamoProperties {
     @Setter
     public static class Sns {
         private String ledgerTopicArn;
+    }
+
+    private Wallet wallet = new Wallet();
+
+    @Getter
+    @Setter
+    public static class Wallet {
+        private BigDecimal initialBalance = BigDecimal.ZERO;
     }
 
     @Override

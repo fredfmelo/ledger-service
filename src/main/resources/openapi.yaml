@@ -120,6 +120,30 @@ paths:
         '404':
           description: Transaction not found
 
+  /internal/users/{userId}/wallet:
+    get:
+      tags:
+        - Internal
+      summary: Get wallet by user ID
+      operationId: getWalletByUserId
+      description: Internal endpoint. Never expose through the API Gateway.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Wallet found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '404':
+          description: Wallet not found
+
   /internal/accounts/{accountId}/credit:
     post:
       tags:

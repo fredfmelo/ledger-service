@@ -36,7 +36,11 @@ public class LedgerQueryService {
     private final LedgerMapper ledgerMapper;
 
     public WalletResponse getWallet(UserContext userContext) {
-        WalletAccountEntity account = findOwnedAccount(userContext.getUserId());
+        return getWalletByUserId(userContext.getUserId());
+    }
+
+    public WalletResponse getWalletByUserId(UUID userId) {
+        WalletAccountEntity account = findOwnedAccount(userId);
         BigDecimal balance = ledgerEntryRepository.calculateBalance(account.getAccountId());
         return ledgerMapper.toWalletResponse(account, balance);
     }
